@@ -9,7 +9,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
     <style>
-        /* ===== same compact, responsive CSS as before ===== */
+        /* ===== same CSS as before (compact, responsive) ===== */
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             background: #f0f4f8;
@@ -804,13 +804,13 @@
         // FIREBASE CONFIG – your credentials
         // ===================================================================
         const firebaseConfig = {
-            apiKey: "AIzaSyBywEXIte2RYB7U1j6gMlvx-gZ6nLAYQGI",
+            apiKey: "AIzaSyBywEXIte2RYB7U1j6gMLvx-gZ6nLAYQGI",
             authDomain: "clinic-72f25.firebaseapp.com",
             databaseURL: "https://clinic-72f25-default-rtdb.firebaseio.com",
             projectId: "clinic-72f25",
             storageBucket: "clinic-72f25.firebasestorage.app",
             messagingSenderId: "93636313739",
-            appId: "1:93636313739:web:40a8739aab06c74ccc8a8e"
+            appId: "1:93636313739:web:40a8739aba06c74ccc8a8e"
         };
 
         // Initialize Firebase
@@ -915,7 +915,6 @@
                     allPatients.push(data);
                 });
                 renderPatientList();
-                // If we have a patient open, refresh its data
                 if (currentPatientId) {
                     const updated = allPatients.find(p => p.id === currentPatientId);
                     if (updated) {
@@ -933,7 +932,7 @@
         }
 
         async function savePatientToFirestore(patient) {
-            const { id, ...data } = patient; // remove id field
+            const { id, ...data } = patient;
             if (id) {
                 await patientsRef.doc(id).set(data);
             } else {
@@ -947,7 +946,6 @@
         }
 
         function getPatients() { return allPatients; }
-        function savePatients(patients) { /* not used */ }
         function getCurrentPatient() {
             return currentPatientData || getPatientById(currentPatientId);
         }
@@ -985,25 +983,31 @@
             renderPatientList();
         }
 
-        // ----- NEW PATIENT -----
+        // ----- FIXED: ADD PATIENT OPENS EDIT MODAL -----
         function showNewPatientForm() {
+            // Generate a new Firestore document ID
+            const newId = patientsRef.doc().id;
             const newPatient = {
                 name: '', dob: '', phone: '', mrn: '', gender: 'M',
                 allergy: '', medicalSurgical: '', family: '', menstrual: '',
                 medications: [], labs: [], visits: []
             };
-            // Save to Firestore and then open it
-            savePatientToFirestore(newPatient).then(() => {
-                // Wait for snapshot to update
-                const unsub = patientsRef.onSnapshot(() => {
-                    const found = allPatients.find(p => p.name === '' && p.dob === '');
-                    if (found) {
-                        openPatient(found.id);
-                        unsub();
-                    }
+            // Save to Firestore with the generated ID
+            patientsRef.doc(newId).set(newPatient)
+                .then(() => {
+                    // Add to local cache
+                    newPatient.id = newId;
+                    allPatients.push(newPatient);
+                    currentPatientId = newId;
+                    currentPatientData = newPatient;
+                    isAddingNewPatient = true;
+                    // Open the edit modal directly
+                    openEditModal();
+                    renderPatientList(); // update the list
+                })
+                .catch(err => {
+                    alert('Error creating patient: ' + err.message);
                 });
-                setTimeout(() => { unsub(); }, 2000);
-            });
         }
 
         // ----- OPEN PATIENT -----
@@ -1028,8 +1032,6 @@
         function ensurePatientItems(patient) {
             if (!patient.medications) patient.medications = [];
             if (!patient.labs) patient.labs = [];
-            // Convert string dates etc. (migration)
-            // We'll keep the same migration logic as before
         }
 
         // ----- RENDER PATIENT LIST (with search) -----
@@ -1431,7 +1433,6 @@
                     visit.investigations = investigations;
                     visit.meds = meds;
                     visit.plan = plan;
-                    // add items from visit
                     addItemsFromVisit(patient, meds, investigations, date);
                     await saveCurrentPatient(patient);
                 }
