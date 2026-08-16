@@ -1,0 +1,1769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>Clinic Manager</title>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+    <style>
+        /* ===== same compact, responsive CSS as before ===== */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: #f0f4f8;
+            font-family: 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif;
+            padding: 12px;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            align-items: center;
+        }
+        #loginView {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(6px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+        #loginView.hidden { display: none !important; }
+        .login-box {
+            background: white;
+            padding: 30px 35px;
+            border-radius: 24px;
+            max-width: 400px;
+            width: 100%;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+        .login-box h2 {
+            font-size: 1.8rem;
+            color: #2a7de1;
+            margin-bottom: 8px;
+        }
+        .login-box .sub {
+            color: #4a5b6c;
+            margin-bottom: 20px;
+            font-size: 1rem;
+        }
+        .login-box .field-group {
+            margin-bottom: 16px;
+            text-align: left;
+        }
+        .login-box label {
+            font-weight: 600;
+            display: block;
+            margin-bottom: 4px;
+            font-size: 0.9rem;
+        }
+        .login-box input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid #d0d9e4;
+            border-radius: 10px;
+            font-size: 1rem;
+            background: #fafcff;
+        }
+        .login-box input:focus {
+            border-color: #2a7de1;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(42,125,225,0.12);
+        }
+        .login-box .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 30px;
+            font-weight: 600;
+            font-size: 1rem;
+            background: #2a7de1;
+            color: white;
+            cursor: pointer;
+            transition: 0.2s;
+            margin-top: 6px;
+        }
+        .login-box .btn:hover { background: #1a5fb0; transform: scale(1.02); }
+        .login-box .error {
+            color: #e74c3c;
+            font-size: 0.9rem;
+            margin-top: 8px;
+            display: none;
+        }
+        .login-box .error.show { display: block; }
+        .login-box .toggle-mode {
+            margin-top: 12px;
+            font-size: 0.9rem;
+            color: #2a7de1;
+            cursor: pointer;
+            background: none;
+            border: none;
+            text-decoration: underline;
+        }
+
+        .app {
+            max-width: 1300px;
+            width: 100%;
+            background: white;
+            border-radius: 18px;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.06);
+            padding: 12px 16px;
+            min-height: 500px;
+            display: none;
+        }
+        .app.active { display: block; }
+
+        .view { display: none; }
+        .view.active { display: block; }
+
+        .list-header {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 10px;
+            padding: 2px 0;
+        }
+        .list-header .logo {
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            font-size: 1.3rem;
+            color: #2a7de1;
+            line-height: 1.2;
+        }
+        .list-header .right-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .search-wrapper {
+            flex: 1 1 160px;
+            min-width: 120px;
+        }
+        .search-wrapper input {
+            width: 100%;
+            padding: 6px 12px;
+            border: 1px solid #d0d9e4;
+            border-radius: 30px;
+            font-size: 0.9rem;
+            background: #fafcff;
+            transition: 0.2s;
+            height: 36px;
+        }
+        .search-wrapper input:focus {
+            border-color: #2a7de1;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(42,125,225,0.12);
+        }
+        .patient-card {
+            background: #f8faff;
+            border: 1px solid #e2eaf2;
+            border-radius: 14px;
+            padding: 10px 14px;
+            margin-bottom: 8px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+        }
+        .patient-card .info {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            gap: 6px 12px;
+        }
+        .patient-card .info .name {
+            font-weight: 600;
+            font-size: 1rem;
+            color: #1a2b3c;
+        }
+        .patient-card .info .detail {
+            color: #4a5b6c;
+            font-size: 0.85rem;
+        }
+        .patient-card .actions { display: flex; gap: 4px; flex-wrap: wrap; }
+        .empty-list { color: #6b7b8c; padding: 30px 0; text-align: center; font-style: italic; }
+
+        .detail-topbar {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 6px;
+        }
+        .detail-topbar .actions {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .btn-text {
+            background: transparent !important;
+            color: #2a7de1 !important;
+            border: none !important;
+            padding: 6px 12px !important;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: 0.2s;
+            min-height: 34px;
+            display: inline-flex;
+            align-items: center;
+        }
+        .btn-text:hover { background: rgba(42,125,225,0.05) !important; }
+        .btn-text-danger {
+            background: transparent !important;
+            color: #e74c3c !important;
+            border: none !important;
+            padding: 6px 12px !important;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: 0.2s;
+            min-height: 34px;
+            display: none;
+            align-items: center;
+        }
+        .btn-text-danger:hover { background: rgba(231,76,60,0.05) !important; }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 16px;
+            margin-top: 4px;
+        }
+        @media (max-width: 800px) {
+            .detail-grid { grid-template-columns: 1fr; gap: 20px; }
+        }
+
+        .patient-name-only {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #1a2b3c;
+            margin-bottom: 8px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 4px;
+        }
+
+        .visit-note-card {
+            background: #fafcff;
+            border: 1px solid #e2eaf2;
+            border-radius: 14px;
+            padding: 12px 14px;
+            margin-bottom: 14px;
+            border-bottom: 2px solid #e2eaf2;
+        }
+        .visit-note-card .visit-date {
+            font-weight: 600;
+            color: #2a7de1;
+            margin-bottom: 4px;
+            font-size: 0.9rem;
+            border-bottom: 1px solid #e8edf2;
+            padding-bottom: 3px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+        .visit-note-card .note-text {
+            white-space: pre-wrap;
+            line-height: 1.5;
+            font-size: 0.9rem;
+            color: #1a2b3c;
+        }
+        .icon-btn {
+            cursor: pointer;
+            color: #2a7de1;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 6px;
+            transition: 0.2s;
+            font-size: 0.9rem;
+            min-height: 30px;
+            display: inline-flex;
+            align-items: center;
+        }
+        .icon-btn:hover { background: rgba(42,125,225,0.1); }
+
+        .right-column-inner {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .merged-section {
+            background: #f8faff;
+            border-radius: 14px;
+            padding: 12px;
+            border: 1px solid #e2eaf2;
+        }
+        .merged-section h5 {
+            color: #1a2b3c;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+        .merged-section ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .merged-section li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+            border-bottom: 1px solid #e8edf2;
+            font-size: 0.85rem;
+            gap: 4px;
+        }
+        .merged-section li:last-child { border-bottom: none; }
+        .merged-section li .item-name {
+            flex: 1;
+            margin-right: 4px;
+        }
+        .merged-section li .item-name.canceled {
+            text-decoration: line-through;
+            color: #999;
+        }
+        .merged-section li .item-actions {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+
+        .med-cancel-icon {
+            color: #888;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 2px 4px;
+            font-size: 1rem;
+            transition: 0.2s;
+            user-select: none;
+            min-height: 30px;
+            display: inline-flex;
+            align-items: center;
+        }
+        .med-cancel-icon:hover { color: #333; }
+
+        .btn-sm.transparent-add {
+            background: transparent !important;
+            color: #2a7de1 !important;
+            border: none !important;
+            padding: 2px 8px !important;
+            font-weight: 600;
+            font-size: 0.8rem;
+            transition: 0.2s;
+            min-height: 28px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            border-radius: 30px;
+        }
+        .btn-sm.transparent-add:hover { background: rgba(42,125,225,0.08) !important; }
+
+        .btn-sm {
+            padding: 4px 10px;
+            font-size: 0.75rem;
+            border-radius: 30px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            min-height: 28px;
+            display: inline-flex;
+            align-items: center;
+        }
+        .btn-sm.primary { background: #2a7de1; color: white; }
+        .btn-sm.primary:hover { background: #1a5fb0; }
+        .btn-sm.secondary { background: #e8edf2; color: #1a2b3c; }
+        .btn-sm.secondary:hover { background: #d0d9e4; }
+        .btn-sm.danger { background: #e74c3c; color: white; }
+        .btn-sm.danger:hover { background: #c0392b; }
+
+        .lab-timeline .arrow {
+            color: #2a7de1;
+            font-weight: 600;
+            margin: 0 4px;
+            font-size: 0.9rem;
+        }
+        .lab-value {
+            cursor: pointer;
+            text-decoration: underline dotted #2a7de1;
+            padding: 2px 4px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        .lab-value:hover { background: #e8edf2; }
+
+        .fab-container {
+            position: fixed;
+            bottom: 16px;
+            right: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 100;
+            align-items: flex-end;
+        }
+        .fab {
+            padding: 10px 20px;
+            border-radius: 50px;
+            background: transparent !important;
+            color: #2a7de1 !important;
+            border: 2px solid #2a7de1 !important;
+            font-size: 0.9rem;
+            font-weight: 600;
+            box-shadow: none !important;
+            cursor: pointer;
+            transition: 0.2s;
+            min-height: 42px;
+            min-width: 42px;
+            background: rgba(255,255,255,0.92) !important;
+            backdrop-filter: blur(4px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+        }
+        .fab:hover { background: rgba(42,125,225,0.12) !important; transform: scale(1.03); }
+
+        .btn {
+            background: #2a7de1;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 30px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: 0.2s;
+            min-height: 38px;
+            display: inline-flex;
+            align-items: center;
+        }
+        .btn:hover { background: #1a5fb0; transform: scale(1.02); }
+        .btn-secondary {
+            background: #e8edf2;
+            color: #1a2b3c;
+        }
+        .btn-secondary:hover { background: #d0d9e4; }
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+        .btn-danger:hover { background: #c0392b; }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 999;
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.4);
+            justify-content: center;
+            align-items: center;
+            padding: 16px;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: white;
+            padding: 18px 20px;
+            border-radius: 20px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.15);
+        }
+        .modal-content h3 { margin-bottom: 14px; font-size: 1.2rem; }
+        .modal-content .field-group {
+            margin-bottom: 10px;
+        }
+        .modal-content label {
+            font-weight: 600;
+            display: block;
+            margin-bottom: 2px;
+            font-size: 0.85rem;
+        }
+        .modal-content input, .modal-content textarea, .modal-content select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d0d9e4;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            background: #fafcff;
+        }
+        .modal-content textarea { min-height: 60px; resize: vertical; }
+        .modal-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 14px;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+        }
+        .modal-actions .btn-text-danger {
+            display: inline-block !important;
+        }
+
+        .status-msg { color: #2a7de1; font-weight: 500; margin-left: 6px; }
+        .empty-state { color: #6b7b8c; font-style: italic; font-size: 0.85rem; padding: 6px 0; }
+
+        .lab-value-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+            border-bottom: 1px solid #eee;
+            gap: 4px;
+        }
+        .lab-value-item .val { font-weight: 500; }
+        .lab-value-item .date { color: #666; font-size: 0.75rem; }
+
+        .manage-lab-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            border-bottom: 1px solid #e8edf2;
+            gap: 4px;
+        }
+        .manage-lab-item .lab-name { font-weight: 600; flex: 1; }
+        .manage-lab-item .lab-actions { display: flex; gap: 4px; }
+
+        .logout-btn {
+            background: transparent;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 4px 8px;
+            transition: 0.2s;
+            color: #2a7de1;
+            line-height: 1;
+        }
+        .logout-btn:hover { transform: scale(1.1); color: #e74c3c; }
+
+        @media (max-width: 500px) {
+            .app { padding: 10px; }
+            .list-header .logo { font-size: 1.1rem; }
+            .search-wrapper input { font-size: 0.85rem; height: 32px; padding: 4px 10px; }
+            .patient-card { padding: 8px 10px; }
+            .patient-card .info .name { font-size: 0.95rem; }
+            .patient-card .info .detail { font-size: 0.8rem; }
+            .btn-text { font-size: 0.8rem; padding: 4px 8px !important; }
+            .detail-topbar .actions { gap: 2px; }
+            .patient-name-only { font-size: 1rem; }
+            .fab { padding: 8px 14px; font-size: 0.8rem; min-height: 36px; }
+            .fab-container { bottom: 12px; right: 12px; gap: 6px; }
+            .modal-content { padding: 14px; }
+            .modal-content h3 { font-size: 1rem; }
+            .login-box { padding: 20px; }
+            .login-box h2 { font-size: 1.5rem; }
+            .logout-btn { font-size: 1.3rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ============================================================ -->
+    <!-- LOGIN VIEW (Firebase Auth)                                   -->
+    <!-- ============================================================ -->
+    <div id="loginView">
+        <div class="login-box">
+            <h2>🔒 Clinic Manager</h2>
+            <div class="sub" id="loginSub">Sign in to your account</div>
+
+            <div class="field-group">
+                <label for="loginEmail">Email</label>
+                <input type="email" id="loginEmail" placeholder="your@email.com" autofocus>
+            </div>
+            <div class="field-group">
+                <label for="loginPassword">Password</label>
+                <input type="password" id="loginPassword" placeholder="Enter password">
+            </div>
+            <div id="loginError" class="error">Invalid email or password.</div>
+            <button class="btn" id="loginBtn">Sign In</button>
+
+            <button class="toggle-mode" id="toggleMode">Don't have an account? Sign Up</button>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- MAIN APP                                                      -->
+    <!-- ============================================================ -->
+    <div class="app" id="appContainer">
+
+        <!-- VIEW 1: PATIENT LIST -->
+        <div id="listView" class="view active">
+            <div class="list-header">
+                <div class="logo">Dr. Muhammad Elsayid</div>
+                <div class="right-group">
+                    <div class="search-wrapper">
+                        <input type="text" id="searchInput" placeholder="🔍 Search..." oninput="renderPatientList()">
+                    </div>
+                    <button class="logout-btn" onclick="logout()" title="Logout">⏻</button>
+                </div>
+            </div>
+            <div id="patientListContainer">
+                <div class="empty-list">Loading patients...</div>
+            </div>
+        </div>
+
+        <!-- VIEW 2: PATIENT DETAIL -->
+        <div id="detailView" class="view">
+            <div class="detail-topbar">
+                <div class="actions">
+                    <button class="btn-text" onclick="goBackToList()">← Back</button>
+                    <button class="btn-text" id="editPatientBtn" onclick="openEditModal()">Edit Patient</button>
+                    <button class="logout-btn" onclick="logout()" title="Logout">⏻</button>
+                </div>
+            </div>
+            <div class="detail-grid">
+                <div>
+                    <div id="patientNameDisplay" class="patient-name-only"></div>
+                    <div id="allVisitsContainer"><div class="empty-state">No visits recorded.</div></div>
+                </div>
+                <div>
+                    <div class="right-column-inner">
+                        <div class="merged-section" id="investigationsSection">
+                            <h5>Investigations <span><button class="btn-sm transparent-add" onclick="openManageInvestigations()">✎</button><button class="btn-sm transparent-add" onclick="openManualAdd('labs')">Add</button></span></h5>
+                            <ul id="labsList"><li class="empty-state">No investigations yet.</li></ul>
+                        </div>
+                        <div class="merged-section" id="medicationsSection">
+                            <h5>Medications <button class="btn-sm transparent-add" onclick="openManualAdd('medications')">Add</button></h5>
+                            <ul id="medicationsList"><li class="empty-state">No medications yet.</li></ul>
+                        </div>
+                    </div>
+                    <div id="manualAddContainer" style="display:none; margin-top:8px; padding:10px; background:#f0f4f8; border-radius:10px;">
+                        <div id="manualAddFields"></div>
+                        <div style="display:flex; gap:6px; margin-top:4px;">
+                            <button class="btn-sm primary" onclick="confirmManualAdd()">Save</button>
+                            <button class="btn-sm secondary" onclick="cancelManualAdd()">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- MODALS                                                       -->
+        <!-- ============================================================ -->
+        <!-- Edit Patient Modal -->
+        <div id="editModal" class="modal">
+            <div class="modal-content">
+                <h3 id="editModalTitle">✏️ Edit Patient</h3>
+                <div class="field-group">
+                    <label>Name</label>
+                    <input type="text" id="edit_name" placeholder="Full name">
+                </div>
+                <div class="field-group">
+                    <label>DOB</label>
+                    <input type="date" id="edit_dob">
+                </div>
+                <div class="field-group">
+                    <label>Phone</label>
+                    <input type="text" id="edit_phone" placeholder="Contact number">
+                </div>
+                <div class="field-group">
+                    <label>MRN</label>
+                    <input type="text" id="edit_mrn" placeholder="Medical record number">
+                </div>
+                <div class="field-group">
+                    <label>Gender</label>
+                    <select id="edit_gender">
+                        <option value="M">Male</option>
+                        <option value="F">Female</option>
+                    </select>
+                </div>
+                <div class="field-group">
+                    <label>Allergy</label>
+                    <input type="text" id="edit_allergy" placeholder="e.g. Penicillin">
+                </div>
+                <div class="field-group">
+                    <label>Medical &amp; Surgical Hx</label>
+                    <textarea id="edit_medicalSurgical" placeholder="Past medical &amp; surgical history"></textarea>
+                </div>
+                <div class="field-group">
+                    <label>Family Hx</label>
+                    <textarea id="edit_family" placeholder="Family history"></textarea>
+                </div>
+                <div class="field-group">
+                    <label>Menstrual Hx</label>
+                    <textarea id="edit_menstrual" placeholder="e.g. Regular, LMP ..."></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-text-danger" id="modalDeleteBtn" onclick="deleteCurrentPatient()">Delete Patient</button>
+                    <button class="btn btn-secondary" onclick="cancelEditModal()">Cancel</button>
+                    <button class="btn" onclick="saveProfileFromModal()">Save</button>
+                </div>
+                <span id="modalStatus" class="status-msg"></span>
+            </div>
+        </div>
+
+        <!-- Add/Edit Visit Modal -->
+        <div id="visitModal" class="modal">
+            <div class="modal-content">
+                <h3 id="visitModalTitle">📌 Add New Visit</h3>
+                <input type="hidden" id="visitModalId">
+                <div class="field-group">
+                    <label>Visit Date</label>
+                    <input type="date" id="visitModalDate">
+                </div>
+                <div class="field-group">
+                    <label>Presenting Complaint</label>
+                    <textarea id="visitModalComplaint" placeholder="Chief complaint &amp; history"></textarea>
+                </div>
+                <div class="field-group">
+                    <label>Clinical Examination</label>
+                    <textarea id="visitModalExam" placeholder="Vitals, physical exam"></textarea>
+                </div>
+                <div class="field-group">
+                    <label>Investigations</label>
+                    <textarea id="visitModalInvestigations" placeholder="e.g. Hb: 14&#10;crp 2.5"></textarea>
+                </div>
+                <div class="field-group">
+                    <label>Current Medications</label>
+                    <textarea id="visitModalMeds" placeholder="e.g. amoxicillin, stop zurcal"></textarea>
+                </div>
+                <div class="field-group">
+                    <label>Plan of Care &amp; Treatment</label>
+                    <textarea id="visitModalPlan" placeholder="Management plan"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-danger" id="visitModalDeleteBtn" style="display:none;" onclick="deleteVisitFromModal()">Remove Visit</button>
+                    <button class="btn btn-secondary" onclick="closeVisitModal()">Cancel</button>
+                    <button class="btn" id="visitModalSaveBtn" onclick="saveVisitFromModal()">Update Visit</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Single Investigation Modal -->
+        <div id="labModal" class="modal">
+            <div class="modal-content">
+                <h3 id="labModalTitle">Edit Investigation</h3>
+                <input type="hidden" id="labModalId">
+                <div class="field-group">
+                    <label>Lab Name</label>
+                    <input type="text" id="labModalName" placeholder="e.g. Hb">
+                </div>
+                <div class="field-group">
+                    <label>Values (click ✖ to delete)</label>
+                    <div id="labValuesList"></div>
+                </div>
+                <div class="field-group" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                    <input type="text" id="labModalNewValue" placeholder="New value" style="flex:1; min-width:100px;">
+                    <input type="date" id="labModalNewDate" style="flex:0 0 150px;">
+                    <button class="btn-sm primary" onclick="addLabValueFromModal()">Add</button>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" onclick="closeLabModal()">Close</button>
+                    <button class="btn" onclick="saveLabFromModal()">Save Changes</button>
+                </div>
+                <span id="labModalStatus" class="status-msg"></span>
+            </div>
+        </div>
+
+        <!-- Manage Investigations Modal -->
+        <div id="manageLabsModal" class="modal">
+            <div class="modal-content">
+                <h3>Manage Investigations</h3>
+                <div id="manageLabsList">
+                    <div class="empty-state">No investigations to manage.</div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" onclick="closeManageLabsModal()">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- FAB CONTAINER                                                -->
+        <!-- ============================================================ -->
+        <div class="fab-container">
+            <button class="fab" id="fabAddPatient" onclick="showNewPatientForm()">Add Patient</button>
+            <button class="fab" id="fabAddVisit" onclick="openVisitModal()">Add Visit</button>
+        </div>
+
+    </div> <!-- end app -->
+
+
+    <script>
+        // ===================================================================
+        // FIREBASE CONFIG – your credentials
+        // ===================================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyBywEXIte2RYB7U1j6gMlvx-gZ6nLAYQGI",
+            authDomain: "clinic-72f25.firebaseapp.com",
+            databaseURL: "https://clinic-72f25-default-rtdb.firebaseio.com",
+            projectId: "clinic-72f25",
+            storageBucket: "clinic-72f25.firebasestorage.app",
+            messagingSenderId: "93636313739",
+            appId: "1:93636313739:web:40a8739aab06c74ccc8a8e"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // ===================================================================
+        // AUTH HANDLING
+        // ===================================================================
+        const loginView = document.getElementById('loginView');
+        const appContainer = document.getElementById('appContainer');
+        const loginEmail = document.getElementById('loginEmail');
+        const loginPassword = document.getElementById('loginPassword');
+        const loginBtn = document.getElementById('loginBtn');
+        const loginSub = document.getElementById('loginSub');
+        const loginError = document.getElementById('loginError');
+        const toggleMode = document.getElementById('toggleMode');
+        let isSignUp = false;
+
+        toggleMode.addEventListener('click', () => {
+            isSignUp = !isSignUp;
+            if (isSignUp) {
+                toggleMode.textContent = 'Already have an account? Sign In';
+                loginBtn.textContent = 'Sign Up';
+                loginSub.textContent = 'Create a new account';
+            } else {
+                toggleMode.textContent = "Don't have an account? Sign Up";
+                loginBtn.textContent = 'Sign In';
+                loginSub.textContent = 'Sign in to your account';
+            }
+            loginError.classList.remove('show');
+        });
+
+        function handleAuth() {
+            const email = loginEmail.value.trim();
+            const pw = loginPassword.value.trim();
+            if (!email || !pw) {
+                loginError.textContent = 'Please fill in all fields.';
+                loginError.classList.add('show');
+                return;
+            }
+            loginError.classList.remove('show');
+            if (isSignUp) {
+                auth.createUserWithEmailAndPassword(email, pw)
+                    .then(() => { /* auth state change will handle */ })
+                    .catch(err => {
+                        loginError.textContent = err.message;
+                        loginError.classList.add('show');
+                    });
+            } else {
+                auth.signInWithEmailAndPassword(email, pw)
+                    .catch(err => {
+                        loginError.textContent = err.message;
+                        loginError.classList.add('show');
+                    });
+            }
+        }
+
+        loginBtn.addEventListener('click', handleAuth);
+        loginPassword.addEventListener('keydown', e => { if (e.key === 'Enter') handleAuth(); });
+        loginEmail.addEventListener('keydown', e => { if (e.key === 'Enter') loginPassword.focus(); });
+
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                loginView.classList.add('hidden');
+                appContainer.classList.add('active');
+                showView('listView');
+                loadAllData();
+            } else {
+                loginView.classList.remove('hidden');
+                appContainer.classList.remove('active');
+            }
+        });
+
+        function logout() {
+            if (confirm('Logout? You will need to sign in again.')) {
+                auth.signOut();
+                document.querySelectorAll('.modal').forEach(m => m.classList.remove('active'));
+            }
+        }
+
+        // ===================================================================
+        // FIRESTORE DATA LAYER
+        // ===================================================================
+        let allPatients = [];
+        let currentPatientId = null;
+        let currentPatientData = null;
+        let manualAddTarget = null;
+        let editingVisitId = null;
+        let editingLabId = null;
+        let isAddingNewPatient = false;
+
+        const patientsRef = db.collection('patients');
+
+        function loadAllData() {
+            patientsRef.orderBy('name').onSnapshot(snapshot => {
+                allPatients = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    data.id = doc.id;
+                    allPatients.push(data);
+                });
+                renderPatientList();
+                // If we have a patient open, refresh its data
+                if (currentPatientId) {
+                    const updated = allPatients.find(p => p.id === currentPatientId);
+                    if (updated) {
+                        currentPatientData = updated;
+                        updateDisplay(updated);
+                        renderAllVisits();
+                        renderMergedSections();
+                    }
+                }
+            });
+        }
+
+        function getPatientById(id) {
+            return allPatients.find(p => p.id === id);
+        }
+
+        async function savePatientToFirestore(patient) {
+            const { id, ...data } = patient; // remove id field
+            if (id) {
+                await patientsRef.doc(id).set(data);
+            } else {
+                const ref = await patientsRef.add(data);
+                patient.id = ref.id;
+            }
+        }
+
+        async function deletePatientFromFirestore(id) {
+            await patientsRef.doc(id).delete();
+        }
+
+        function getPatients() { return allPatients; }
+        function savePatients(patients) { /* not used */ }
+        function getCurrentPatient() {
+            return currentPatientData || getPatientById(currentPatientId);
+        }
+
+        async function saveCurrentPatient(patient) {
+            if (!patient.id) return;
+            await patientsRef.doc(patient.id).set(patient);
+        }
+
+        // ===================================================================
+        // UI FUNCTIONS
+        // ===================================================================
+        function showView(viewId) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            const target = document.getElementById(viewId);
+            if (target) target.classList.add('active');
+            const fabAddPatient = document.getElementById('fabAddPatient');
+            const fabAddVisit = document.getElementById('fabAddVisit');
+            if (fabAddPatient && fabAddVisit) {
+                if (viewId === 'listView') {
+                    fabAddPatient.style.display = 'flex';
+                    fabAddVisit.style.display = 'none';
+                } else {
+                    fabAddPatient.style.display = 'none';
+                    fabAddVisit.style.display = 'flex';
+                }
+            }
+        }
+
+        function goBackToList() {
+            currentPatientId = null;
+            currentPatientData = null;
+            isAddingNewPatient = false;
+            showView('listView');
+            renderPatientList();
+        }
+
+        // ----- NEW PATIENT -----
+        function showNewPatientForm() {
+            const newPatient = {
+                name: '', dob: '', phone: '', mrn: '', gender: 'M',
+                allergy: '', medicalSurgical: '', family: '', menstrual: '',
+                medications: [], labs: [], visits: []
+            };
+            // Save to Firestore and then open it
+            savePatientToFirestore(newPatient).then(() => {
+                // Wait for snapshot to update
+                const unsub = patientsRef.onSnapshot(() => {
+                    const found = allPatients.find(p => p.name === '' && p.dob === '');
+                    if (found) {
+                        openPatient(found.id);
+                        unsub();
+                    }
+                });
+                setTimeout(() => { unsub(); }, 2000);
+            });
+        }
+
+        // ----- OPEN PATIENT -----
+        function openPatient(id) {
+            const patient = getPatientById(id);
+            if (!patient) { alert('Patient not found.'); return; }
+            currentPatientId = id;
+            currentPatientData = patient;
+            isAddingNewPatient = false;
+            ensurePatientItems(patient);
+            updateDisplay(patient);
+            renderAllVisits();
+            renderMergedSections();
+            showView('detailView');
+        }
+
+        function updateDisplay(patient) {
+            const nameEl = document.getElementById('patientNameDisplay');
+            nameEl.textContent = patient.name || 'Unnamed';
+        }
+
+        function ensurePatientItems(patient) {
+            if (!patient.medications) patient.medications = [];
+            if (!patient.labs) patient.labs = [];
+            // Convert string dates etc. (migration)
+            // We'll keep the same migration logic as before
+        }
+
+        // ----- RENDER PATIENT LIST (with search) -----
+        function renderPatientList() {
+            const patients = getPatients();
+            const searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
+            const container = document.getElementById('patientListContainer');
+
+            let filtered = patients;
+            if (searchTerm) {
+                filtered = patients.filter(p => {
+                    let age = '';
+                    let birthYear = '';
+                    if (p.dob) {
+                        const a = calculateAge(p.dob);
+                        age = a !== null ? String(a) : '';
+                        birthYear = new Date(p.dob).getFullYear().toString();
+                    }
+                    const fields = [
+                        p.name || '',
+                        age,
+                        birthYear,
+                        p.mrn || '',
+                        p.phone || ''
+                    ];
+                    return fields.some(f => f.toLowerCase().includes(searchTerm));
+                });
+            }
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="empty-list">No patients match your search.</div>`;
+                return;
+            }
+
+            let html = '';
+            filtered.forEach(p => {
+                const name = p.name || '(Unnamed)';
+                const age = p.dob ? calculateAge(p.dob) : null;
+                const ageDisplay = age !== null ? `${age} y` : 'No DOB';
+                const mrn = p.mrn || 'No MRN';
+                const visitCount = (p.visits || []).length;
+                html += `
+                    <div class="patient-card">
+                        <div class="info">
+                            <span class="name">${name}</span>
+                            <span class="detail">${ageDisplay}</span>
+                            <span class="detail">${mrn}</span>
+                            <span class="detail">${visitCount} visit${visitCount !== 1 ? 's' : ''}</span>
+                        </div>
+                        <div class="actions">
+                            <button class="btn-sm primary" onclick="openPatient('${p.id}')">Open</button>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        // ----- DELETE PATIENT -----
+        function deletePatient(id) {
+            if (!confirm('Delete this patient and all their visits?')) return;
+            deletePatientFromFirestore(id).then(() => {
+                if (currentPatientId === id) {
+                    currentPatientId = null;
+                    currentPatientData = null;
+                    showView('listView');
+                    renderPatientList();
+                }
+            });
+        }
+        function deleteCurrentPatient() {
+            if (currentPatientId) {
+                if (isAddingNewPatient) {
+                    deletePatient(currentPatientId);
+                    closeEditModal();
+                    return;
+                }
+                deletePatient(currentPatientId);
+                closeEditModal();
+            }
+        }
+
+        // ----- EDIT PATIENT MODAL -----
+        function openEditModal() {
+            const patient = getCurrentPatient();
+            if (!patient) { alert('No patient loaded.'); return; }
+            document.getElementById('editModalTitle').textContent = isAddingNewPatient ? 'Add Patient' : '✏️ Edit Patient';
+            document.getElementById('edit_name').value = patient.name || '';
+            document.getElementById('edit_dob').value = patient.dob || '';
+            document.getElementById('edit_phone').value = patient.phone || '';
+            document.getElementById('edit_mrn').value = patient.mrn || '';
+            document.getElementById('edit_gender').value = patient.gender || 'M';
+            document.getElementById('edit_allergy').value = patient.allergy || '';
+            document.getElementById('edit_medicalSurgical').value = patient.medicalSurgical || '';
+            document.getElementById('edit_family').value = patient.family || '';
+            document.getElementById('edit_menstrual').value = patient.menstrual || '';
+            document.getElementById('modalDeleteBtn').style.display = isAddingNewPatient ? 'none' : 'inline-block';
+            document.getElementById('modalStatus').textContent = '';
+            document.getElementById('editModal').classList.add('active');
+        }
+        function closeEditModal() { document.getElementById('editModal').classList.remove('active'); }
+        function cancelEditModal() {
+            if (isAddingNewPatient && currentPatientId) {
+                deletePatient(currentPatientId);
+                isAddingNewPatient = false;
+                currentPatientId = null;
+                showView('listView');
+                renderPatientList();
+            }
+            closeEditModal();
+        }
+        async function saveProfileFromModal() {
+            const patient = getCurrentPatient();
+            if (!patient) return;
+            patient.name = document.getElementById('edit_name').value.trim();
+            patient.dob = document.getElementById('edit_dob').value;
+            patient.phone = document.getElementById('edit_phone').value.trim();
+            patient.mrn = document.getElementById('edit_mrn').value.trim();
+            patient.gender = document.getElementById('edit_gender').value;
+            patient.allergy = document.getElementById('edit_allergy').value.trim();
+            patient.medicalSurgical = document.getElementById('edit_medicalSurgical').value.trim();
+            patient.family = document.getElementById('edit_family').value.trim();
+            patient.menstrual = document.getElementById('edit_menstrual').value.trim();
+
+            await saveCurrentPatient(patient);
+            if (isAddingNewPatient) {
+                isAddingNewPatient = false;
+                closeEditModal();
+                updateDisplay(patient);
+                renderAllVisits();
+                renderMergedSections();
+                showView('detailView');
+                renderPatientList();
+            } else {
+                updateDisplay(patient);
+                renderAllVisits();
+                renderMergedSections();
+                renderPatientList();
+                document.getElementById('modalStatus').textContent = '✅ Profile saved!';
+                setTimeout(() => { document.getElementById('modalStatus').textContent = ''; closeEditModal(); }, 800);
+            }
+        }
+
+        // ----- HELPERS (date, age) -----
+        function formatDate(dateStr) {
+            if (!dateStr) return '?';
+            const parts = dateStr.split('-');
+            if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+            return dateStr;
+        }
+        function calculateAge(dob) {
+            if (!dob) return null;
+            const birth = new Date(dob);
+            const today = new Date();
+            let age = today.getFullYear() - birth.getFullYear();
+            const m = today.getMonth() - birth.getMonth();
+            if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+            return age >= 0 ? age : null;
+        }
+
+        // ----- BUILD NOTE PARAGRAPH -----
+        function buildNoteParagraph(patient, visit, includeStatic) {
+            let age = '?';
+            if (patient.dob) {
+                const a = calculateAge(patient.dob);
+                age = a !== null ? a : '?';
+            }
+            const gender = patient.gender || 'M';
+            const genderText = gender === 'F' ? 'female' : 'male';
+            let staticText = '';
+            if (includeStatic) {
+                staticText += `${age} y, ${genderText} patient`;
+                if (patient.allergy && patient.allergy.toLowerCase() !== 'none') {
+                    staticText += `, ALLERGIC TO ${patient.allergy.toUpperCase()}`;
+                }
+                if (patient.medicalSurgical) staticText += `, Known ${patient.medicalSurgical}`;
+                if (patient.family) staticText += `, Family Hx significant for ${patient.family}`;
+                if (gender === 'F' && patient.menstrual) staticText += `, Menstrual Hx: ${patient.menstrual}`;
+            }
+            let dynamicParts = [];
+            if (visit.complaint) {
+                let c = visit.complaint.trim();
+                c = c.charAt(0).toUpperCase() + c.slice(1);
+                dynamicParts.push(c);
+            }
+            if (visit.exam) dynamicParts.push(`Ex: ${visit.exam.trim()}`);
+            if (visit.investigations) dynamicParts.push(`Inv: ${visit.investigations.trim()}`);
+            if (visit.plan) {
+                let p = visit.plan.trim();
+                p = p.charAt(0).toUpperCase() + p.slice(1);
+                dynamicParts.push(`Plan: ${p}`);
+            }
+            let dynamicText = dynamicParts.join('\n');
+            if (includeStatic) return staticText + '\n\n' + dynamicText;
+            return dynamicText;
+        }
+
+        // ----- RENDER VISITS -----
+        function renderAllVisits() {
+            const patient = getCurrentPatient();
+            const container = document.getElementById('allVisitsContainer');
+            if (!patient || !patient.visits || patient.visits.length === 0) {
+                container.innerHTML = `<div class="empty-state">No visits recorded for this patient.</div>`;
+                return;
+            }
+            const sorted = [...patient.visits].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+            let html = '';
+            sorted.forEach((visit, index) => {
+                const noteText = buildNoteParagraph(patient, visit, index === 0);
+                const formattedDate = visit.date ? formatDate(visit.date) : 'No date';
+                html += `
+                    <div class="visit-note-card">
+                        <div class="visit-date">
+                            <span>${formattedDate}</span>
+                            <div class="visit-actions">
+                                <span class="icon-btn" onclick="editVisit('${visit.id}')" title="Edit visit">✎</span>
+                            </div>
+                        </div>
+                        <div class="note-text">${noteText}</div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        // ----- RENDER MEDICATIONS & INVESTIGATIONS -----
+        function renderMergedSections() {
+            const patient = getCurrentPatient();
+            if (!patient) return;
+            ensurePatientItems(patient);
+
+            // Medications
+            const medContainer = document.getElementById('medicationsList');
+            if (patient.medications.length === 0) {
+                medContainer.innerHTML = `<li class="empty-state">No medications yet.</li>`;
+            } else {
+                const active = patient.medications.filter(m => m.status === 'active');
+                const canceled = patient.medications.filter(m => m.status === 'canceled');
+                const sortedMeds = [...active, ...canceled];
+                let html = '';
+                sortedMeds.forEach(item => {
+                    const isCanceled = item.status === 'canceled';
+                    const start = item.startDate ? formatDate(item.startDate) : '?';
+                    let end = '';
+                    let tooltip = '';
+                    if (isCanceled && item.endDate) {
+                        end = formatDate(item.endDate);
+                        tooltip = `Started: ${start} → Ended: ${end}`;
+                    } else if (isCanceled) {
+                        tooltip = `Started: ${start} (canceled)`;
+                    } else {
+                        tooltip = `Started: ${start}`;
+                    }
+                    const cancelHtml = isCanceled ? '' : `<span class="med-cancel-icon" onclick="cancelMedication('${patient.id}','${item.id}')" title="Cancel medication">✕</span>`;
+                    html += `
+                        <li>
+                            <span class="item-name ${isCanceled ? 'canceled' : ''}" title="${tooltip}">${item.name}</span>
+                            <div class="item-actions">${cancelHtml}</div>
+                        </li>
+                    `;
+                });
+                medContainer.innerHTML = html;
+            }
+
+            // Investigations
+            const labContainer = document.getElementById('labsList');
+            if (patient.labs.length === 0) {
+                labContainer.innerHTML = `<li class="empty-state">No investigations yet.</li>`;
+            } else {
+                let html = '';
+                patient.labs.forEach(item => {
+                    let valuesHtml = '';
+                    item.values.forEach((v, idx) => {
+                        const valueDisplay = v.value !== undefined ? String(v.value) : 'N/A';
+                        const dateStr = v.date ? formatDate(v.date) : 'unknown';
+                        if (idx > 0) valuesHtml += `<span class="arrow"> → </span>`;
+                        valuesHtml += `<span class="lab-value" title="${valueDisplay} (${dateStr})" onclick="showLabDate('${valueDisplay}', '${dateStr}')">${valueDisplay}</span>`;
+                    });
+                    html += `
+                        <li>
+                            <span class="item-name lab-timeline"><strong>${item.name}:</strong> ${valuesHtml}</span>
+                        </li>
+                    `;
+                });
+                labContainer.innerHTML = html;
+            }
+        }
+
+        // ----- MANAGE INVESTIGATIONS -----
+        function openManageInvestigations() {
+            const patient = getCurrentPatient();
+            if (!patient) return;
+            const container = document.getElementById('manageLabsList');
+            if (!patient.labs || patient.labs.length === 0) {
+                container.innerHTML = '<div class="empty-state">No investigations to manage.</div>';
+            } else {
+                let html = '';
+                patient.labs.forEach(lab => {
+                    const valueCount = lab.values ? lab.values.length : 0;
+                    html += `
+                        <div class="manage-lab-item">
+                            <span class="lab-name">${lab.name} (${valueCount} values)</span>
+                            <div class="lab-actions">
+                                <button class="btn-sm primary" onclick="editLab('${lab.id}')">✎ Edit</button>
+                                <button class="btn-sm danger" onclick="deleteLabFromManage('${lab.id}')">✖ Delete</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            }
+            document.getElementById('manageLabsModal').classList.add('active');
+        }
+        function closeManageLabsModal() {
+            document.getElementById('manageLabsModal').classList.remove('active');
+            renderMergedSections();
+        }
+        function deleteLabFromManage(labId) {
+            if (!confirm('Delete this investigation and all its values?')) return;
+            const patient = getCurrentPatient();
+            if (!patient) return;
+            patient.labs = patient.labs.filter(l => l.id !== labId);
+            saveCurrentPatient(patient);
+            openManageInvestigations();
+            renderMergedSections();
+        }
+
+        // ----- EDIT / DELETE VISIT -----
+        function editVisit(visitId) {
+            const patient = getCurrentPatient();
+            if (!patient) return;
+            const visit = patient.visits.find(v => v.id === visitId);
+            if (!visit) return;
+            editingVisitId = visitId;
+            document.getElementById('visitModalTitle').textContent = '✏️ Edit Visit';
+            document.getElementById('visitModalId').value = visitId;
+            document.getElementById('visitModalDate').value = visit.date || '';
+            document.getElementById('visitModalComplaint').value = visit.complaint || '';
+            document.getElementById('visitModalExam').value = visit.exam || '';
+            document.getElementById('visitModalInvestigations').value = visit.investigations || '';
+            document.getElementById('visitModalMeds').value = visit.meds || '';
+            document.getElementById('visitModalPlan').value = visit.plan || '';
+            document.getElementById('visitModalSaveBtn').textContent = 'Update Visit';
+            document.getElementById('visitModalDeleteBtn').style.display = 'inline-block';
+            document.getElementById('visitModal').classList.add('active');
+        }
+
+        function openVisitModal() {
+            editingVisitId = null;
+            document.getElementById('visitModalTitle').textContent = '📌 Add New Visit';
+            document.getElementById('visitModalId').value = '';
+            document.getElementById('visitModalDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('visitModalComplaint').value = '';
+            document.getElementById('visitModalExam').value = '';
+            document.getElementById('visitModalInvestigations').value = '';
+            document.getElementById('visitModalMeds').value = '';
+            document.getElementById('visitModalPlan').value = '';
+            document.getElementById('visitModalSaveBtn').textContent = 'Save Visit';
+            document.getElementById('visitModalDeleteBtn').style.display = 'none';
+            document.getElementById('visitModal').classList.add('active');
+        }
+
+        function closeVisitModal() { document.getElementById('visitModal').classList.remove('active'); }
+
+        function deleteVisitFromModal() {
+            const visitId = document.getElementById('visitModalId').value;
+            if (!visitId) return;
+            if (!confirm('Are you sure you want to permanently remove this visit?')) return;
+            const patient = getCurrentPatient();
+            if (!patient) return;
+            patient.visits = patient.visits.filter(v => v.id !== visitId);
+            saveCurrentPatient(patient);
+            closeVisitModal();
+            renderAllVisits();
+            renderPatientList();
+        }
+
+        async function saveVisitFromModal() {
+            const patient = getCurrentPatient();
+            if (!patient) { alert('No patient loaded.'); return; }
+
+            const id = document.getElementById('visitModalId').value;
+            const date = document.getElementById('visitModalDate').value;
+            const complaint = document.getElementById('visitModalComplaint').value.trim();
+            const exam = document.getElementById('visitModalExam').value.trim();
+            const investigations = document.getElementById('visitModalInvestigations').value.trim();
+            const meds = document.getElementById('visitModalMeds').value.trim();
+            const plan = document.getElementById('visitModalPlan').value.trim();
+
+            if (!date) { alert('Please select a visit date.'); return; }
+            if (!complaint) { alert('Please enter the presenting complaint.'); return; }
+
+            if (id) {
+                const visit = patient.visits.find(v => v.id === id);
+                if (visit) {
+                    visit.date = date;
+                    visit.complaint = complaint;
+                    visit.exam = exam;
+                    visit.investigations = investigations;
+                    visit.meds = meds;
+                    visit.plan = plan;
+                    // add items from visit
+                    addItemsFromVisit(patient, meds, investigations, date);
+                    await saveCurrentPatient(patient);
+                }
+            } else {
+                const newVisit = {
+                    id: 'v_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 4),
+                    date, complaint, exam, investigations, meds, plan
+                };
+                if (!patient.visits) patient.visits = [];
+                patient.visits.push(newVisit);
+                addItemsFromVisit(patient, meds, investigations, date);
+                await saveCurrentPatient(patient);
+            }
+
+            closeVisitModal();
+            renderAllVisits();
+            renderMergedSections();
+            renderPatientList();
+        }
+
+        // ----- ADD ITEMS FROM VISIT (meds & labs) -----
+        function addItemsFromVisit(patient, medsText, labsText, visitDate) {
+            processMedications(patient, medsText, visitDate);
+            if (labsText) {
+                labsText.split(/[\n,]+/).map(l => l.trim()).filter(l => l.length > 0).forEach(line => {
+                    const { name, value } = parseLabEntry(line);
+                    addLabToPatient(patient, name, value, visitDate);
+                });
+            }
+        }
+
+        // ----- PARSE LAB ENTRY -----
+        function parseLabEntry(text) {
+            let trimmed = text.trim();
+            let match = trimmed.match(/^([\w\s]+?)\s*[:=]\s*(.+)$/);
+            if (match) return { name: match[1].trim().toUpperCase(), value: match[2].trim() };
+            match = trimmed.match(/^([\w\s]+?)\s+(\d+(\.\d+)?)$/);
+            if (match) return { name: match[1].trim().toUpperCase(), value: match[2] };
+            return { name: trimmed.toUpperCase(), value: trimmed };
+        }
+
+        // ----- PROCESS MEDICATIONS (with stop) -----
+        function processMedications(patient, medsText, visitDate) {
+            if (!medsText) return;
+            const items = medsText.split(/[\n,]+/).map(m => m.trim()).filter(m => m.length > 0);
+            const normalMeds = [];
+            const stopCommands = [];
+            items.forEach(raw => {
+                const lower = raw.toLowerCase();
+                if (lower.startsWith('stop ') || lower.startsWith('discontinue ')) {
+                    let name = lower.startsWith('stop ') ? raw.substring(5).trim() : raw.substring(11).trim();
+                    if (name.length > 0) stopCommands.push(name);
+                } else {
+                    normalMeds.push(raw);
+                }
+            });
+
+            const today = new Date().toISOString().split('T')[0];
+            const date = visitDate || today;
+
+            normalMeds.forEach(name => {
+                patient.medications.push({
+                    id: 'm_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 3),
+                    name,
+                    status: 'active',
+                    startDate: date
+                });
+            });
+
+            stopCommands.forEach(cmdName => {
+                const lowerCmd = cmdName.toLowerCase();
+                let found = false;
+                patient.medications.forEach(med => {
+                    if (med.status === 'active' && med.name.toLowerCase().startsWith(lowerCmd)) {
+                        med.status = 'canceled';
+                        med.endDate = today;
+                        found = true;
+                    }
+                });
+                if (!found) {
+                    patient.medications.push({
+                        id: 'm_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 3),
+                        name: cmdName,
+                        status: 'canceled',
+                        startDate: date,
+                        endDate: today
+                    });
+                }
+            });
+        }
+
+        // ----- ADD LAB -----
+        function addLabToPatient(patient, name, value, date) {
+            const normalizedName = name.trim().toUpperCase();
+            if (!normalizedName) return;
+            const val = value.trim() || normalizedName;
+            const labDate = date || new Date().toISOString().split('T')[0];
+
+            let existing = patient.labs.find(l => l.name.toUpperCase() === normalizedName);
+            if (existing) {
+                const last = existing.values[existing.values.length - 1];
+                if (last.value !== val || last.date !== labDate) {
+                    existing.values.push({ value: val, date: labDate });
+                }
+            } else {
+                patient.labs.push({ id: 'l_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 3), name: normalizedName, values: [{ value: val, date: labDate }] });
+            }
+        }
+
+        // ----- CANCEL MEDICATION -----
+        function cancelMedication(patientId, itemId) {
+            const patient = getPatientById(patientId);
+            if (!patient) return;
+            const item = patient.medications.find(i => i.id === itemId);
+            if (!item) return;
+            if (item.status === 'active') {
+                item.status = 'canceled';
+                item.endDate = new Date().toISOString().split('T')[0];
+                saveCurrentPatient(patient).then(() => {
+                    if (currentPatientId === patientId) renderMergedSections();
+                });
+            }
+        }
+
+        // ----- EDIT LAB (single) -----
+        function editLab(labId) {
+            const patient = getCurrentPatient();
+            if (!patient) return;
+            const lab = patient.labs.find(l => l.id === labId);
+            if (!lab) return;
+            editingLabId = labId;
+            document.getElementById('labModalId').value = labId;
+            document.getElementById('labModalName').value = lab.name;
+            document.getElementById('labModalTitle').textContent = `✏️ Edit ${lab.name}`;
+            renderLabValues(lab);
+            document.getElementById('labModalNewValue').value = '';
+            document.getElementById('labModalNewDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('labModalStatus').textContent = '';
+            document.getElementById('labModal').classList.add('active');
+            closeManageLabsModal();
+        }
+        function renderLabValues(lab) {
+            const container = document.getElementById('labValuesList');
+            if (!lab.values || lab.values.length === 0) {
+                container.innerHTML = '<div class="empty-state">No values yet.</div>';
+                return;
+            }
+            let html = '';
+            lab.values.forEach((v, idx) => {
+                const dateStr = v.date ? formatDate(v.date) : 'unknown';
+                html += `
+                    <div class="lab-value-item">
+                        <span><span class="val">${v.value}</span> <span class="date">(${dateStr})</span></span>
+                        <button class="btn-sm danger" onclick="deleteLabValue('${lab.id}', ${idx})">✖</button>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+        function deleteLabValue(labId, index) {
+            const patient = getCurrentPatient();
+            if (!patient) return;
+            const lab = patient.labs.find(l => l.id === labId);
+            if (!lab) return;
+            lab.values.splice(index, 1);
+            saveCurrentPatient(patient).then(() => {
+                renderLabValues(lab);
+                renderMergedSections();
+            });
+        }
+        function addLabValueFromModal() {
+            const patient = getCurrentPatient();
+            if (!patient) return;
+            const labId = document.getElementById('labModalId').value;
+            const lab = patient.labs.find(l => l.id === labId);
+            if (!lab) return;
+            const newVal = document.getElementById('labModalNewValue').value.trim();
+            const newDate = document.getElementById('labModalNewDate').value;
+            if (!newVal) { alert('Please enter a value.'); return; }
+            if (!newDate) { alert('Please select a date.'); return; }
+            lab.values.push({ value: newVal, date: newDate });
+            saveCurrentPatient(patient).then(() => {
+                renderLabValues(lab);
+                renderMergedSections();
+                document.getElementById('labModalNewValue').value = '';
+                document.getElementById('labModalNewDate').value = new Date().toISOString().split('T')[0];
+                document.getElementById('labModalStatus').textContent = '✅ Value added!';
+                setTimeout(() => document.getElementById('labModalStatus').textContent = '', 2000);
+            });
+        }
+        function saveLabFromModal() {
+            const patient = getCurrentPatient();
+            if (!patient) return;
+            const labId = document.getElementById('labModalId').value;
+            const lab = patient.labs.find(l => l.id === labId);
+            if (!lab) return;
+            const newName = document.getElementById('labModalName').value.trim().toUpperCase();
+            if (!newName) { alert('Lab name cannot be empty.'); return; }
+            if (newName !== lab.name) {
+                const existing = patient.labs.find(l => l.id !== labId && l.name === newName);
+                if (existing) {
+                    existing.values = existing.values.concat(lab.values);
+                    patient.labs = patient.labs.filter(l => l.id !== labId);
+                    saveCurrentPatient(patient).then(() => {
+                        closeLabModal();
+                        renderMergedSections();
+                    });
+                    return;
+                } else {
+                    lab.name = newName;
+                }
+            }
+            saveCurrentPatient(patient).then(() => {
+                closeLabModal();
+                renderMergedSections();
+            });
+        }
+        function closeLabModal() { document.getElementById('labModal').classList.remove('active'); }
+
+        // ----- MANUAL ADD (meds / labs) -----
+        function openManualAdd(type) {
+            manualAddTarget = type;
+            const container = document.getElementById('manualAddContainer');
+            const fieldsContainer = document.getElementById('manualAddFields');
+            container.style.display = 'block';
+
+            if (type === 'medications') {
+                fieldsContainer.innerHTML = `
+                    <label style="font-weight:600; font-size:0.9rem;">Medication Name</label>
+                    <input type="text" id="manualAddInput" placeholder="e.g. Amoxicillin" style="width:100%; padding:10px 12px; border-radius:6px; border:1px solid #d0d9e4;">
+                `;
+            } else if (type === 'labs') {
+                const today = new Date().toISOString().split('T')[0];
+                fieldsContainer.innerHTML = `
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <div style="flex:1; min-width:100px;">
+                            <label style="font-weight:600; font-size:0.9rem;">Investigation Name</label>
+                            <input type="text" id="manualAddName" placeholder="e.g. Hb" style="width:100%; padding:10px 12px; border-radius:6px; border:1px solid #d0d9e4;">
+                        </div>
+                        <div style="flex:1; min-width:80px;">
+                            <label style="font-weight:600; font-size:0.9rem;">Value</label>
+                            <input type="text" id="manualAddValue" placeholder="e.g. 14" style="width:100%; padding:10px 12px; border-radius:6px; border:1px solid #d0d9e4;">
+                        </div>
+                        <div style="flex:0 0 150px;">
+                            <label style="font-weight:600; font-size:0.9rem;">Date</label>
+                            <input type="date" id="manualAddDate" value="${today}" style="width:100%; padding:10px 12px; border-radius:6px; border:1px solid #d0d9e4;">
+                        </div>
+                    </div>
+                `;
+            }
+            setTimeout(() => {
+                const firstInput = fieldsContainer.querySelector('input');
+                if (firstInput) firstInput.focus();
+            }, 100);
+        }
+        function cancelManualAdd() {
+            document.getElementById('manualAddContainer').style.display = 'none';
+            manualAddTarget = null;
+        }
+        function confirmManualAdd() {
+            const patient = getCurrentPatient();
+            if (!patient) return;
+            ensurePatientItems(patient);
+
+            if (manualAddTarget === 'medications') {
+                const input = document.getElementById('manualAddInput');
+                const name = input.value.trim();
+                if (!name) { alert('Please enter a medication name.'); return; }
+                const today = new Date().toISOString().split('T')[0];
+                patient.medications.push({
+                    id: 'm_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 3),
+                    name,
+                    status: 'active',
+                    startDate: today
+                });
+                saveCurrentPatient(patient).then(() => {
+                    renderMergedSections();
+                    cancelManualAdd();
+                });
+            } else if (manualAddTarget === 'labs') {
+                const nameInput = document.getElementById('manualAddName');
+                const valueInput = document.getElementById('manualAddValue');
+                const dateInput = document.getElementById('manualAddDate');
+                const name = nameInput.value.trim();
+                const value = valueInput.value.trim() || name;
+                const date = dateInput.value || new Date().toISOString().split('T')[0];
+                if (!name) { alert('Please enter an investigation name.'); return; }
+                addLabToPatient(patient, name, value, date);
+                saveCurrentPatient(patient).then(() => {
+                    renderMergedSections();
+                    cancelManualAdd();
+                });
+            }
+        }
+
+        // ----- LAB DATE POPUP -----
+        function showLabDate(value, date) {
+            alert(`${value}  (${date})`);
+        }
+
+        // ----- KEYBOARD SHORTCUTS -----
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const editModal = document.getElementById('editModal');
+                const visitModal = document.getElementById('visitModal');
+                const labModal = document.getElementById('labModal');
+                const manageModal = document.getElementById('manageLabsModal');
+                if (editModal.classList.contains('active')) {
+                    cancelEditModal();
+                    e.preventDefault();
+                } else if (visitModal.classList.contains('active')) {
+                    closeVisitModal();
+                    e.preventDefault();
+                } else if (labModal.classList.contains('active')) {
+                    closeLabModal();
+                    e.preventDefault();
+                } else if (manageModal.classList.contains('active')) {
+                    closeManageLabsModal();
+                    e.preventDefault();
+                }
+            }
+            const planField = document.getElementById('visitModalPlan');
+            if (e.target === planField && e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                saveVisitFromModal();
+            }
+        });
+
+        // ===================================================================
+        // INIT
+        // ===================================================================
+        // Auth state will trigger loading data
+    </script>
+</body>
+</html>
